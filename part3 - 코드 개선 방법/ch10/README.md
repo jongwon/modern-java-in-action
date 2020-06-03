@@ -114,3 +114,64 @@ Scenario Outline: (정상) 창고에 물건을 입고 시키면 재고에 입고
   And 이 제품들은 모두 정상 이었다.                                          # com.sp.warehouse.InWarehouseStepDefinition.<init>(InWarehouseStepDefinition.java:33)
   Then '수원' 물류창고의 제품 'A4509'의 재고수량은 45개가 된다.                     # com.sp.warehouse.InWarehouseStepDefinition.<init>(InWarehouseStepDefinition.java:41)
 ```
+
+### 구현 코드
+
+```java
+
+
+import com.sp.warehouse.domain.Inventory;
+import com.sp.warehouse.service.InventoryService;
+import io.cucumber.java8.En;
+
+import static org.junit.Assert.assertEquals;
+
+public class InWarehouseStepDefinition implements En {
+
+    private InventoryService inventoryService;
+
+    String warehouseName;
+    String productCode;
+    long inCount = 0;
+
+    public InWarehouseStepDefinition(){
+
+        Before(()->{
+            this.inventoryService = new InventoryService();
+        });
+
+        Given("{string} 물류창고에 제품 {string}이 {long}개 있다.",
+                (String warehouseName, String productCode, Long count) -> {
+            this.warehouseName = warehouseName;
+            this.productCode = productCode;
+            inventoryService.initProduct(warehouseName, productCode, count);
+        });
+
+        When("제품 {string} {long}개를 입고시켰다.", (String productCode, Long count) -> {
+            this.inCount = count;
+        });
+
+        When("이 제품들은 모두 정상 이었다.", () -> {
+            inventoryService.getInventory(warehouseName, productCode).addAvailable(inCount);
+        });
+
+        When("이 제품들 중 {long}개가 불량이었다.", (Long errorCount) -> {
+            inventoryService.getInventory(warehouseName, productCode)
+                    .addAvailable(inCount - errorCount)
+                    .addError(errorCount);
+        });
+        Then("{string} 물류창고의 제품 {string}의 재고수량은 {long}개가 된다.",
+                (String warehouseName, String productCode, Long availableCount) -> {
+            assertEquals(availableCount.longValue(), inventoryService.getInventory(warehouseName, productCode).getAvailableCount());
+        });
+        Then("{string} 물류창고의 제품 {string}의 재고수량은 {long}개 불량품은 {long}개가 된다.",
+                (String warehouseName, String productCode, Long availableCount, Long errorCount) -> {
+            Inventory inventory = inventoryService.getInventory(warehouseName, productCode);
+            assertEquals(availableCount.longValue(), inventory.getAvailableCount());
+                    assertEquals(errorCount.longValue(), inventory.getErrorCount());
+        });
+    }
+
+
+}
+```
